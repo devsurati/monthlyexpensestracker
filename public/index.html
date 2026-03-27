@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>Spendly — Expenses Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Desktop Sidebar ─────────────────────────────────────────────────── -->
+  <aside id="sidebar">
+    <div class="brand">
+      <span class="brand-wave">🌊</span>
+      <span class="brand-name">Spendly</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-link active" data-view="dashboard" href="#dashboard">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-link" data-view="transactions" href="#transactions">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        <span>Transactions</span>
+      </a>
+      <a class="nav-link" data-view="insights" href="#insights">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>Insights</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ── Main Content ────────────────────────────────────────────────────── -->
+  <main id="main-content">
+
+    <!-- Dashboard -->
+    <section id="view-dashboard" class="view">
+      <div class="view-header">
+        <h1>Dashboard</h1>
+        <div class="month-nav">
+          <button class="btn-icon" id="dash-prev"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <span class="month-label" id="dash-month-label">—</span>
+          <button class="btn-icon" id="dash-next"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
+      <div id="dash-stats" class="stats-grid"></div>
+      <div class="dash-grid">
+        <div class="card">
+          <h2 class="card-title">Spending by Category</h2>
+          <div class="donut-wrap">
+            <canvas id="chart-donut"></canvas>
+            <div id="donut-center" class="donut-center"></div>
+          </div>
+          <div id="category-legend" class="legend"></div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Top Merchants</h2>
+          <div id="top-merchants"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-row">
+          <h2 class="card-title">Recent Transactions</h2>
+          <a class="text-link" href="#transactions" data-view="transactions">View all →</a>
+        </div>
+        <div id="recent-transactions"></div>
+      </div>
+    </section>
+
+    <!-- Transactions -->
+    <section id="view-transactions" class="view hidden">
+      <div class="view-header">
+        <h1>Transactions</h1>
+        <button class="btn btn-primary" id="add-tx-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add
+        </button>
+      </div>
+      <div class="filters-bar">
+        <div class="month-nav">
+          <button class="btn-icon" id="tx-prev"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <span class="month-label" id="tx-month-label">—</span>
+          <button class="btn-icon" id="tx-next"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+        <input id="tx-search" type="search" class="input-search" placeholder="Search…" />
+        <select id="tx-cat-filter" class="select-input">
+          <option value="">All categories</option>
+        </select>
+      </div>
+      <div class="card no-pad">
+        <div id="tx-table-wrap"></div>
+        <div id="tx-pagination" class="pagination"></div>
+      </div>
+    </section>
+
+    <!-- Insights -->
+    <section id="view-insights" class="view hidden">
+      <div class="view-header">
+        <h1>Insights</h1>
+      </div>
+      <div id="insights-tips" class="tips-row"></div>
+      <div class="insights-grid">
+        <div class="card">
+          <h2 class="card-title">Monthly Spending Trend</h2>
+          <div class="chart-container">
+            <canvas id="chart-trend"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">This Month vs Last Month</h2>
+          <div class="chart-container">
+            <canvas id="chart-compare"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Mobile Bottom Nav ──────────────────────────────────────────────── -->
+  <nav id="bottom-nav">
+    <a class="bnav-item active" data-view="dashboard" href="#dashboard">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span>Home</span>
+    </a>
+    <a class="bnav-item" data-view="transactions" href="#transactions">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      <span>Txns</span>
+    </a>
+    <a class="bnav-item" data-view="insights" href="#insights">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span>Insights</span>
+    </a>
+  </nav>
+
+  <!-- ── Transaction Modal ──────────────────────────────────────────────── -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="modal-title">Add Transaction</h3>
+        <button class="btn-icon" id="modal-close" aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="tx-form" novalidate>
+        <div class="type-toggle" id="type-toggle">
+          <button type="button" class="type-btn active" data-type="expense">Expense</button>
+          <button type="button" class="type-btn" data-type="income">Income</button>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input id="form-desc" type="text" class="input" placeholder="e.g. Starbucks, Netflix, Rent…" required />
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Amount ($)</label>
+            <input id="form-amount" type="number" class="input" placeholder="0.00" step="0.01" min="0" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input id="form-date" type="date" class="input" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="form-category" class="input select-input"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Account <span class="optional">optional</span></label>
+          <input id="form-account" type="text" class="input" placeholder="e.g. Chase Checking" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes <span class="optional">optional</span></label>
+          <input id="form-notes" type="text" class="input" placeholder="Any notes…" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="modal-submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Toast Container ────────────────────────────────────────────────── -->
+  <div id="toasts" aria-live="polite"></div>
+
+  <!-- ── Scripts ───────────────────────────────────────────────────────── -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="app.js" type="module"></script>
+</body>
+</html>
