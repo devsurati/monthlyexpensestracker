@@ -5,7 +5,7 @@ import {
   getCategories, updateCategory,
   getTransactions, addTransaction, updateTransaction, deleteTransaction,
   getDashboard, getInsights, recategorizeAll,
-  exportTransactions, resetTransactions
+  getRecurring, exportTransactions, resetTransactions
 } from './db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -65,6 +65,13 @@ app.put('/api/categories/:id', async (req, res) => {
 
 app.post('/api/categories/recategorize', async (req, res) => {
   try { res.json({ updated: await recategorizeAll() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Recurring ─────────────────────────────────────────────────────────────────
+
+app.get('/api/recurring', async (req, res) => {
+  try { res.json(await getRecurring()); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 

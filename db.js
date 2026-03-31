@@ -127,8 +127,20 @@ async function seedCategories() {
   }
 }
 
+// ── Migrations ────────────────────────────────────────────────────────────────
+async function migrateSchema() {
+  const migrations = [
+    `ALTER TABLE transactions ADD COLUMN is_recurring INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE transactions ADD COLUMN recurrence_frequency TEXT`
+  ];
+  for (const sql of migrations) {
+    try { await db.execute({ sql, args: [] }); } catch (_) { /* column already exists */ }
+  }
+}
+
 // Run initialization
 await initSchema();
+await migrateSchema();
 await seedCategories();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -221,13 +233,14 @@ export async function getTransactions({ month, category, search, limit = 50, off
 
 export async function addTransaction(tx) {
   const result = await db.execute({
-    sql: `INSERT INTO transactions (date,description,amount,currency,category_id,account,source,import_hash,notes)
-          VALUES (?,?,?,?,?,?,?,?,?)`,
+    sql: `INSERT INTO transactions (date,description,amount,currency,category_id,account,source,import_hash,notes,is_recurring,recurrence_frequency)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     args: [
       tx.date, tx.description, Number(tx.amount),
-      tx.currency || 'USD', tx.category_id ?? null,
+      tx.currency || 'CAD', tx.category_id ?? null,
       tx.account || null, tx.source || 'manual',
-      tx.import_hash || null, tx.notes || null
+      tx.import_hash || null, tx.notes || null,
+      tx.is_recurring ? 1 : 0, tx.recurrence_frequency || null
     ]
   });
   const id = Number(result.lastInsertRowid);
@@ -240,7 +253,7 @@ export async function addTransaction(tx) {
 }
 
 export async function updateTransaction(id, fields) {
-  const allowed = ['date','description','amount','currency','category_id','account','notes'];
+  const allowed = ['date','description','amount','currency','category_id','account','notes','is_recurring','recurrence_frequency'];
   const updates = [], values = [];
   for (const [k, v] of Object.entries(fields)) {
     if (!allowed.includes(k)) continue;
@@ -456,6 +469,18 @@ export async function getInsights(months = 6) {
     category_comparison: { current: currentCats, last: lastCats },
     tips
   };
+}
+
+// ── Recurring ─────────────────────────────────────────────────────────────────
+export async function getRecurring() {
+  const r = await db.execute({
+    sql: `SELECT t.*, c.name AS category_name, c.icon AS category_icon, c.color AS category_color
+          FROM transactions t LEFT JOIN categories c ON t.category_id = c.id
+          WHERE t.is_recurring = 1
+          ORDER BY t.recurrence_frequency, t.description`,
+    args: []
+  });
+  return rowsToPlain(r.rows);
 }
 
 // ── Export / Reset ────────────────────────────────────────────────────────────

@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <title>Spendly — Expenses Tracker</title>
+  <title>VØLT — Expense Tracker</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -16,8 +16,7 @@
   <!-- ── Desktop Sidebar ─────────────────────────────────────────────────── -->
   <aside id="sidebar">
     <div class="brand">
-      <span class="brand-wave">🌊</span>
-      <span class="brand-name">Spendly</span>
+      <span class="brand-name">VØLT</span>
     </div>
     <nav class="sidebar-nav">
       <a class="nav-link active" data-view="dashboard" href="#dashboard">
@@ -69,6 +68,10 @@
           <a class="text-link" href="#transactions" data-view="transactions">View all →</a>
         </div>
         <div id="recent-transactions"></div>
+      </div>
+      <div class="card" id="dash-recurring-card">
+        <h2 class="card-title">Recurring Expenses</h2>
+        <div id="dash-recurring"></div>
       </div>
     </section>
 
@@ -178,6 +181,22 @@
           <label class="form-label">Notes <span class="optional">optional</span></label>
           <input id="form-notes" type="text" class="input" placeholder="Any notes…" />
         </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label recurring-label">
+              <input id="form-recurring" type="checkbox" class="checkbox-input" />
+              Recurring
+            </label>
+          </div>
+          <div class="form-group" id="recurrence-freq-group" style="display:none">
+            <label class="form-label">Frequency</label>
+            <select id="form-recurrence-freq" class="input select-input">
+              <option value="monthly">Monthly</option>
+              <option value="weekly">Weekly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+        </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-ghost" id="modal-cancel">Cancel</button>
           <button type="submit" class="btn btn-primary" id="modal-submit">Save</button>
@@ -188,6 +207,40 @@
 
   <!-- ── Toast Container ────────────────────────────────────────────────── -->
   <div id="toasts" aria-live="polite"></div>
+
+  <!-- ── Quick-Add FAB ─────────────────────────────────────────────────── -->
+  <button id="fab-add" class="fab" aria-label="Add transaction">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+
+  <!-- ── Currency Toggle ───────────────────────────────────────────────── -->
+  <div id="currency-toggle" class="currency-toggle">
+    <button class="cur-btn" data-cur="CAD">CA$</button>
+    <button class="cur-btn" data-cur="USD">US$</button>
+  </div>
+
+  <!-- ── Budget Modal ──────────────────────────────────────────────────── -->
+  <div id="budget-modal-overlay" class="modal-overlay hidden">
+    <div class="modal" style="max-width:340px" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="budget-modal-title">Set Budget</h3>
+        <button class="btn-icon" id="budget-modal-close" aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="budget-modal-body">
+        <div class="form-group">
+          <label class="form-label">Monthly Budget</label>
+          <input id="budget-input" type="number" class="input" placeholder="e.g. 200" step="0.01" min="0" />
+        </div>
+        <p class="budget-hint">Leave empty to remove budget</p>
+        <div class="modal-footer" style="margin-top:16px">
+          <button class="btn btn-ghost" id="budget-modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="budget-modal-save">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ── Scripts ───────────────────────────────────────────────────────── -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>

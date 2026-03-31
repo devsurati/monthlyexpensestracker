@@ -12,7 +12,9 @@ const state = {
   editingId: null,
   txType: 'expense',
   categories: [],
-  charts: {}
+  charts: {},
+  currency: localStorage.getItem('volt_currency') || 'CAD',
+  budgetEditCatId: null
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -32,9 +34,11 @@ function shiftMonth(ym, delta) {
   return d.toISOString().slice(0, 7);
 }
 
+function currSymbol() { return state.currency === 'CAD' ? 'CA$' : '$'; }
+
 function fmt$(n) {
-  if (n == null) return '$0.00';
-  return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (n == null) return currSymbol() + '0.00';
+  return currSymbol() + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtDate(iso) {
@@ -109,22 +113,22 @@ async function renderDashboard() {
   const net = data.net;
   document.getElementById('dash-stats').innerHTML = `
     <div class="stat-card">
-      <div class="stat-icon" style="background:#FFE5E5">💸</div>
+      <div class="stat-icon" style="background:rgba(255,87,87,0.12)">💸</div>
       <div class="stat-label">Total Spent</div>
       <div class="stat-value expense">${fmt$(data.total_spent)}</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon" style="background:#D6F5F3">💵</div>
+      <div class="stat-icon" style="background:rgba(0,214,143,0.12)">💵</div>
       <div class="stat-label">Total Income</div>
       <div class="stat-value income">${fmt$(data.total_income)}</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon" style="background:${net >= 0 ? '#D6F5F3' : '#FFE5E5'}">${net >= 0 ? '📈' : '📉'}</div>
+      <div class="stat-icon" style="background:${net >= 0 ? 'rgba(0,214,143,0.12)' : 'rgba(255,87,87,0.12)'}">${net >= 0 ? '📈' : '📉'}</div>
       <div class="stat-label">Net Savings</div>
       <div class="stat-value ${net >= 0 ? 'positive' : 'negative'}">${net < 0 ? '-' : ''}${fmt$(net)}</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon" style="background:#FFFBE0">📊</div>
+      <div class="stat-icon" style="background:rgba(255,184,48,0.12)">📊</div>
       <div class="stat-label">Transactions</div>
       <div class="stat-value">${data.transaction_count}</div>
     </div>
@@ -159,15 +163,30 @@ async function renderDashboard() {
 
     dcCenter.innerHTML = `<div class="dc-amount">${fmt$(data.total_spent)}</div><div class="dc-label">spent</div>`;
 
-    legend.innerHTML = data.by_category.slice(0, 6).map(c => `
-      <div class="legend-item">
+    legend.innerHTML = data.by_category.slice(0, 6).map(c => {
+      const budgetPct = c.budget ? Math.min(100, Math.round((c.amount / c.budget) * 100)) : 0;
+      const overBudget = c.over_budget;
+      return `
+      <div class="legend-item ${overBudget ? 'budget-over' : ''}">
         <div class="legend-left">
           <span class="legend-dot" style="background:${escHtml(c.color)}"></span>
           <span class="legend-name">${escHtml(c.icon)} ${escHtml(c.name)}</span>
           <span class="legend-pct">${c.percentage}%</span>
         </div>
-        <span class="legend-amount">${fmt$(c.amount)}</span>
-      </div>`).join('');
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="legend-amount">${fmt$(c.amount)}</span>
+          <button class="btn-icon" style="width:22px;height:22px;font-size:11px" title="Set budget" onclick="openBudgetModal(${c.id},'${escHtml(c.name)}',${c.budget ?? ''})">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+        </div>
+      </div>
+      ${c.budget ? `
+        <div class="budget-bar-wrap">
+          <div class="budget-bar" style="width:${budgetPct}%;background:${overBudget ? 'var(--expense)' : 'var(--accent)'}"></div>
+        </div>
+        <div class="budget-bar-label">${fmt$(c.amount)} of ${fmt$(c.budget)} — ${budgetPct}%${overBudget ? ' ⚠️ over budget' : ''}</div>
+      ` : ''}`;
+    }).join('');
   }
 
   // Top merchants
@@ -184,6 +203,7 @@ async function renderDashboard() {
   }
 
   renderTxList('recent-transactions', data.recent_transactions, false);
+  renderRecurring();
 }
 
 // ── Transactions ─────────────────────────────────────────────────────────────
@@ -216,8 +236,8 @@ function renderTxList(containerId, txs, withActions) {
   if (!txs.length) {
     el.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">🌊</div>
-        <p><strong>No transactions here yet.</strong><br>Tap + Add to record your first expense.</p>
+        <div class="empty-icon">⬡</div>
+        <p><strong>No transactions here yet.</strong><br>Add your first transaction.</p>
       </div>`;
     return;
   }
@@ -323,18 +343,18 @@ async function renderInsights() {
       data: {
         labels: data.monthly_trend.map(m => fmtMonth(m.month).split(' ').slice(0, 2).join(' ')),
         datasets: [
-          { label: 'Spent',  data: data.monthly_trend.map(m => m.spent),  borderColor: '#FF6B6B', backgroundColor: 'rgba(255,107,107,0.1)', fill: true, tension: 0.4, pointRadius: 5, pointHoverRadius: 7 },
-          { label: 'Income', data: data.monthly_trend.map(m => m.income), borderColor: '#00B894', backgroundColor: 'rgba(0,184,148,0.08)',    fill: true, tension: 0.4, pointRadius: 5, pointHoverRadius: 7 }
+          { label: 'Spent',  data: data.monthly_trend.map(m => m.spent),  borderColor: '#FF5757', backgroundColor: 'rgba(255,87,87,0.08)',  fill: true, tension: 0.4, pointRadius: 5, pointHoverRadius: 7 },
+          { label: 'Income', data: data.monthly_trend.map(m => m.income), borderColor: '#00D68F', backgroundColor: 'rgba(0,214,143,0.06)',   fill: true, tension: 0.4, pointRadius: 5, pointHoverRadius: 7 }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'top', labels: { font: { family: 'Poppins', size: 12 } } },
+          legend: { position: 'top', labels: { font: { family: 'Space Grotesk', size: 12 } } },
           tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt$(ctx.parsed.y)}` } }
         },
         scales: {
-          y: { ticks: { callback: v => '$' + v.toLocaleString() }, grid: { color: '#EDE0CC' } },
+          y: { ticks: { callback: v => '$' + v.toLocaleString() }, grid: { color: '#252525' } },
           x: { grid: { display: false } }
         }
       }
@@ -358,18 +378,18 @@ async function renderInsights() {
       data: {
         labels: allCats,
         datasets: [
-          { label: 'This Month', data: allCats.map(n => currMap[n] || 0), backgroundColor: 'rgba(255,107,107,0.75)', borderRadius: 6 },
-          { label: 'Last Month', data: allCats.map(n => lastMap[n] || 0), backgroundColor: 'rgba(78,205,196,0.65)',  borderRadius: 6 }
+          { label: 'This Month', data: allCats.map(n => currMap[n] || 0), backgroundColor: 'rgba(255,87,87,0.8)',   borderRadius: 6 },
+          { label: 'Last Month', data: allCats.map(n => lastMap[n] || 0), backgroundColor: 'rgba(124,111,255,0.7)', borderRadius: 6 }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'top', labels: { font: { family: 'Poppins', size: 12 } } },
+          legend: { position: 'top', labels: { font: { family: 'Space Grotesk', size: 12 } } },
           tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt$(ctx.parsed.y)}` } }
         },
         scales: {
-          y: { ticks: { callback: v => '$' + v.toLocaleString() }, grid: { color: '#EDE0CC' } },
+          y: { ticks: { callback: v => '$' + v.toLocaleString() }, grid: { color: '#252525' } },
           x: { grid: { display: false }, ticks: { font: { size: 11 } } }
         }
       }
@@ -378,6 +398,58 @@ async function renderInsights() {
     compareCtx.parentElement.innerHTML = `<div class="empty-state"><p>Not enough data to compare months yet.</p></div>`;
   }
 }
+
+// ── Recurring ─────────────────────────────────────────────────────────────────
+async function renderRecurring() {
+  const el = document.getElementById('dash-recurring');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const rows = await api.get('/api/recurring');
+  if (!rows.length) {
+    el.innerHTML = `<div class="empty-state"><p>No recurring expenses yet.<br>Mark a transaction as recurring when adding it.</p></div>`;
+    return;
+  }
+  el.innerHTML = rows.map(tx => {
+    const isExpense = tx.amount < 0;
+    return `
+    <div class="recurring-item">
+      <span class="recur-freq">${escHtml(tx.recurrence_frequency || 'monthly')}</span>
+      <span class="recur-desc">${escHtml(tx.description)}</span>
+      <span class="recur-cat">${escHtml(tx.category_icon || '')} ${escHtml(tx.category_name || '')}</span>
+      <span class="recur-amount ${isExpense ? 'tx-amount-expense' : 'tx-amount-income'}">
+        ${isExpense ? '-' : '+'}${fmt$(tx.amount)}
+      </span>
+    </div>`;
+  }).join('');
+}
+
+// ── Budget Modal ──────────────────────────────────────────────────────────────
+window.openBudgetModal = (catId, catName, currentBudget) => {
+  state.budgetEditCatId = catId;
+  document.getElementById('budget-modal-title').textContent = `Budget — ${catName}`;
+  document.getElementById('budget-input').value = currentBudget || '';
+  document.getElementById('budget-modal-overlay').classList.remove('hidden');
+  document.getElementById('budget-input').focus();
+};
+
+function closeBudgetModal() {
+  document.getElementById('budget-modal-overlay').classList.add('hidden');
+  state.budgetEditCatId = null;
+}
+
+document.getElementById('budget-modal-close').addEventListener('click', closeBudgetModal);
+document.getElementById('budget-modal-cancel').addEventListener('click', closeBudgetModal);
+document.getElementById('budget-modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('budget-modal-overlay')) closeBudgetModal();
+});
+
+document.getElementById('budget-modal-save').addEventListener('click', async () => {
+  const val = document.getElementById('budget-input').value;
+  const budget = val === '' ? null : parseFloat(val);
+  await api.put(`/api/categories/${state.budgetEditCatId}`, { budget });
+  closeBudgetModal();
+  toast('Budget saved', 'success');
+  renderDashboard();
+});
 
 // ── Modal ────────────────────────────────────────────────────────────────────
 function openModal(tx = null) {
@@ -398,6 +470,12 @@ function openModal(tx = null) {
   document.getElementById('form-account').value = tx?.account ?? '';
   document.getElementById('form-notes').value   = tx?.notes ?? '';
   if (tx?.category_id) catSel.value = tx.category_id;
+
+  const recurringCheck = document.getElementById('form-recurring');
+  const freqGroup      = document.getElementById('recurrence-freq-group');
+  recurringCheck.checked = !!(tx?.is_recurring);
+  document.getElementById('form-recurrence-freq').value = tx?.recurrence_frequency || 'monthly';
+  freqGroup.style.display = recurringCheck.checked ? '' : 'none';
 
   document.getElementById('modal-overlay').classList.remove('hidden');
   document.getElementById('form-desc').focus();
@@ -422,6 +500,10 @@ document.querySelectorAll('.type-btn').forEach(btn => {
   });
 });
 
+document.getElementById('form-recurring').addEventListener('change', e => {
+  document.getElementById('recurrence-freq-group').style.display = e.target.checked ? '' : 'none';
+});
+
 document.getElementById('tx-form').addEventListener('submit', async e => {
   e.preventDefault();
   const desc    = document.getElementById('form-desc').value.trim();
@@ -432,8 +514,10 @@ document.getElementById('tx-form').addEventListener('submit', async e => {
   const notes   = document.getElementById('form-notes').value.trim();
   if (!desc || !amount || !date) return;
 
+  const isRecurring = document.getElementById('form-recurring').checked;
+  const recurrenceFreq = isRecurring ? document.getElementById('form-recurrence-freq').value : null;
   const finalAmount = state.txType === 'expense' ? -Math.abs(amount) : Math.abs(amount);
-  const body = { date, description: desc, amount: finalAmount, category_id: catId || null, account, notes };
+  const body = { date, description: desc, amount: finalAmount, category_id: catId || null, account, notes, is_recurring: isRecurring ? 1 : 0, recurrence_frequency: recurrenceFreq };
 
   if (state.editingId) {
     await api.put(`/api/transactions/${state.editingId}`, body);
@@ -466,8 +550,28 @@ document.getElementById('tx-cat-filter').addEventListener('change', e => {
   state.txCategory = e.target.value; state.txOffset = 0; renderTransactions();
 });
 
+// ── Currency Toggle ───────────────────────────────────────────────────────────
+function applyCurrency() {
+  document.querySelectorAll('.cur-btn').forEach(b => b.classList.toggle('active', b.dataset.cur === state.currency));
+}
+
+document.querySelectorAll('.cur-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.currency = btn.dataset.cur;
+    localStorage.setItem('volt_currency', state.currency);
+    applyCurrency();
+    if (state.view === 'dashboard')    renderDashboard();
+    if (state.view === 'transactions') renderTransactions();
+    if (state.view === 'insights')     renderInsights();
+  });
+});
+
+// ── FAB ───────────────────────────────────────────────────────────────────────
+document.getElementById('fab-add').addEventListener('click', () => openModal());
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
+  applyCurrency();
   state.categories = await api.get('/api/categories');
   navigate(location.hash.slice(1) || 'dashboard');
 }
