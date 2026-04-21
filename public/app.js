@@ -14,7 +14,8 @@ const state = {
   categories: [],
   charts: {},
   currency: localStorage.getItem('volt_currency') || 'CAD',
-  budgetEditCatId: null
+  budgetEditCatId: null,
+  annualYear: new Date().getFullYear().toString()
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -34,7 +35,11 @@ function shiftMonth(ym, delta) {
   return d.toISOString().slice(0, 7);
 }
 
-function currSymbol() { return state.currency === 'CAD' ? 'CA$' : '$'; }
+function currSymbol() {
+  if (state.currency === 'CAD') return 'CA$';
+  if (state.currency === 'INR') return '₹';
+  return '$';
+}
 
 function fmt$(n) {
   if (n == null) return currSymbol() + '0.00';
@@ -75,7 +80,7 @@ function toast(msg, type = '') {
 
 // ── Router ───────────────────────────────────────────────────────────────────
 function navigate(view) {
-  if (!['dashboard', 'transactions', 'insights'].includes(view)) view = 'dashboard';
+  if (!['dashboard', 'transactions', 'insights', 'annual'].includes(view)) view = 'dashboard';
   state.view = view;
 
   document.querySelectorAll('.view').forEach(s => s.classList.add('hidden'));
@@ -89,6 +94,7 @@ function navigate(view) {
   if (view === 'dashboard')    renderDashboard();
   if (view === 'transactions') renderTransactions();
   if (view === 'insights')     renderInsights();
+  if (view === 'annual')       renderAnnual();
 }
 
 window.addEventListener('hashchange', () => navigate(location.hash.slice(1)));
@@ -548,6 +554,100 @@ document.getElementById('tx-search').addEventListener('input', e => {
 });
 document.getElementById('tx-cat-filter').addEventListener('change', e => {
   state.txCategory = e.target.value; state.txOffset = 0; renderTransactions();
+});
+
+// ── Annual Report ─────────────────────────────────────────────────────────────
+async function renderAnnual() {
+  document.getElementById('annual-year-label').textContent = state.annualYear;
+  document.getElementById('annual-stats').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  document.getElementById('annual-by-cat').innerHTML = '';
+
+  const data = await api.get(`/api/annual?year=${state.annualYear}`);
+
+  // Stat cards
+  document.getElementById('annual-stats').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(255,87,87,0.12)">💸</div>
+      <div class="stat-label">Total Spent</div>
+      <div class="stat-value expense">${fmt$(data.total_spent)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(0,214,143,0.12)">💵</div>
+      <div class="stat-label">Total Income</div>
+      <div class="stat-value income">${fmt$(data.total_income)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:${data.net >= 0 ? 'rgba(0,214,143,0.12)' : 'rgba(255,87,87,0.12)'}">
+        ${data.net >= 0 ? '📈' : '📉'}
+      </div>
+      <div class="stat-label">Net Savings</div>
+      <div class="stat-value ${data.net >= 0 ? 'positive' : 'negative'}">${data.net < 0 ? '-' : ''}${fmt$(data.net)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(124,111,255,0.12)">📅</div>
+      <div class="stat-label">Months Active</div>
+      <div class="stat-value">${data.months_active}</div>
+    </div>
+  `;
+
+  // Category breakdown
+  const catEl = document.getElementById('annual-by-cat');
+  if (!data.by_category.length) {
+    catEl.innerHTML = `<div class="empty-state"><p>No spending data for ${state.annualYear}.</p></div>`;
+  } else {
+    catEl.innerHTML = data.by_category.map(c => `
+      <div class="annual-cat-item">
+        <div class="annual-cat-icon">${escHtml(c.icon || '📦')}</div>
+        <div class="annual-cat-info">
+          <div class="annual-cat-name">${escHtml(c.name)}</div>
+          <div class="annual-cat-bar-wrap">
+            <div class="annual-cat-bar" style="width:${c.percentage}%;background:${escHtml(c.color || 'var(--accent)')}"></div>
+          </div>
+        </div>
+        <div class="annual-cat-right">
+          <span class="annual-cat-amount">${fmt$(c.amount)}</span>
+          <span class="annual-cat-pct">${c.percentage}%</span>
+        </div>
+      </div>`).join('');
+  }
+
+  // Monthly bar chart
+  destroyChart('annual');
+  const annualCtx = document.getElementById('chart-annual');
+  if (data.monthly_trend.length) {
+    state.charts.annual = new Chart(annualCtx, {
+      type: 'bar',
+      data: {
+        labels: data.monthly_trend.map(m => fmtMonth(m.month).split(' ')[0]),
+        datasets: [
+          { label: 'Spent',  data: data.monthly_trend.map(m => m.spent),  backgroundColor: 'rgba(255,87,87,0.75)',   borderRadius: 6 },
+          { label: 'Income', data: data.monthly_trend.map(m => m.income), backgroundColor: 'rgba(0,214,143,0.65)',  borderRadius: 6 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { font: { family: 'Space Grotesk', size: 12 } } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt$(ctx.parsed.y)}` } }
+        },
+        scales: {
+          y: { ticks: { callback: v => currSymbol() + v.toLocaleString() }, grid: { color: '#252525' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  } else {
+    annualCtx.parentElement.innerHTML = `<div class="empty-state"><p>No data for ${state.annualYear}.</p></div>`;
+  }
+}
+
+document.getElementById('annual-prev').addEventListener('click', () => {
+  state.annualYear = String(Number(state.annualYear) - 1);
+  renderAnnual();
+});
+document.getElementById('annual-next').addEventListener('click', () => {
+  state.annualYear = String(Number(state.annualYear) + 1);
+  renderAnnual();
 });
 
 // ── Currency Toggle ───────────────────────────────────────────────────────────

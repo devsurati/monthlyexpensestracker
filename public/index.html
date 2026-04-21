@@ -31,6 +31,10 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         <span>Insights</span>
       </a>
+      <a class="nav-link" data-view="annual" href="#annual">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Annual</span>
+      </a>
     </nav>
   </aside>
 
@@ -123,6 +127,31 @@
       </div>
     </section>
 
+    <!-- Annual Report -->
+    <section id="view-annual" class="view hidden">
+      <div class="view-header">
+        <h1>Annual Report</h1>
+        <div class="month-nav">
+          <button class="btn-icon" id="annual-prev"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <span class="month-label" id="annual-year-label">—</span>
+          <button class="btn-icon" id="annual-next"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
+      <div id="annual-stats" class="stats-grid"></div>
+      <div class="dash-grid">
+        <div class="card">
+          <h2 class="card-title">Spending by Category</h2>
+          <div id="annual-by-cat"></div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Monthly Breakdown</h2>
+          <div class="chart-container">
+            <canvas id="chart-annual"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- ── Mobile Bottom Nav ──────────────────────────────────────────────── -->
@@ -138,6 +167,10 @@
     <a class="bnav-item" data-view="insights" href="#insights">
       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       <span>Insights</span>
+    </a>
+    <a class="bnav-item" data-view="annual" href="#annual">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Annual</span>
     </a>
   </nav>
 
@@ -217,6 +250,7 @@
   <div id="currency-toggle" class="currency-toggle">
     <button class="cur-btn" data-cur="CAD">CA$</button>
     <button class="cur-btn" data-cur="USD">US$</button>
+    <button class="cur-btn" data-cur="INR">₹</button>
   </div>
 
   <!-- ── Budget Modal ──────────────────────────────────────────────────── -->

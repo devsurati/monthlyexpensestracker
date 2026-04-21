@@ -47,6 +47,7 @@ body {
   color: var(--text);
   line-height: 1.5;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 a { text-decoration: none; color: inherit; }
 button { cursor: pointer; font-family: inherit; }
@@ -74,10 +75,16 @@ input, select, textarea { font-family: inherit; }
 }
 
 #main-content {
-  padding: 20px 16px calc(var(--bnav-h) + 20px);
+  /* top padding accounts for the currency toggle pill on mobile */
+  padding: 56px 16px calc(var(--bnav-h) + 20px);
   max-width: 900px;
   margin: 0 auto;
+  overflow-x: hidden;
 }
+
+/* Explicit view hide — belt-and-suspenders for mobile WebKit */
+.view { display: none; }
+.view:not(.hidden) { display: block; }
 
 @media (min-width: 900px) {
   #sidebar { display: flex; }
@@ -142,17 +149,22 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 3px;
   color: var(--text-mid);
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 500;
-  padding: 8px 16px;
+  padding: 8px 10px;
+  min-height: 44px;
+  min-width: 0;
+  flex: 1;
   border-radius: var(--radius-xs);
   transition: color var(--transition);
+  -webkit-tap-highlight-color: transparent;
 }
 .bnav-item.active { color: var(--accent); }
 
 /* ── Views ──────────────────────────────────────────────────────────────── */
-.view { animation: fadeIn 0.2s ease; }
-.view.hidden { display: none; }
+/* Base: all views hidden — JS removes .hidden to show the active one */
+/* Extra specificity for mobile WebKit compatibility */
+.view.hidden { display: none !important; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 .view-header {
@@ -705,6 +717,47 @@ input, select, textarea { font-family: inherit; }
 @keyframes toastIn  { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(8px); } }
 
+/* ── Annual Report ──────────────────────────────────────────────────────── */
+.annual-cat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.annual-cat-item:last-child { border-bottom: none; }
+.annual-cat-icon {
+  font-size: 1.2rem;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.annual-cat-info { flex: 1; min-width: 0; }
+.annual-cat-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.annual-cat-bar-wrap {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+.annual-cat-bar { height: 100%; border-radius: 2px; }
+.annual-cat-right { text-align: right; flex-shrink: 0; }
+.annual-cat-amount {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  display: block;
+}
+.annual-cat-pct {
+  font-size: 0.72rem;
+  color: var(--text-mid);
+}
+
 /* ── FAB (Quick-Add) ────────────────────────────────────────────────────── */
 .fab {
   position: fixed;
@@ -733,8 +786,8 @@ input, select, textarea { font-family: inherit; }
 /* ── Currency Toggle ────────────────────────────────────────────────────── */
 .currency-toggle {
   position: fixed;
-  top: 16px;
-  right: 16px;
+  top: max(12px, env(safe-area-inset-top, 12px));
+  right: 12px;
   display: flex;
   background: var(--card);
   border: 1px solid var(--border);

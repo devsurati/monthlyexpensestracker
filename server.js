@@ -5,7 +5,7 @@ import {
   getCategories, updateCategory,
   getTransactions, addTransaction, updateTransaction, deleteTransaction,
   getDashboard, getInsights, recategorizeAll,
-  getRecurring, exportTransactions, resetTransactions
+  getRecurring, getAnnual, exportTransactions, resetTransactions
 } from './db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -84,6 +84,11 @@ app.get('/api/dashboard', async (req, res) => {
 
 app.get('/api/insights', async (req, res) => {
   try { res.json(await getInsights(Number(req.query.months) || 6)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/annual', async (req, res) => {
+  try { res.json(await getAnnual(req.query.year || null)); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 

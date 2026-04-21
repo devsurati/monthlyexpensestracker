@@ -127,6 +127,70 @@ async function seedCategories() {
   }
 }
 
+// ── Category Updates (idempotent — runs every start) ──────────────────────────
+const NEW_CATEGORIES = [
+  {
+    name: 'Groceries', icon: '🛒', color: '#20BF6B',
+    keywords: ['grocery','sobeys','loblaws','metro','food basics','no frills','whole foods',
+      'trader joe','safeway','kroger','walmart grocery','costco','superstore','freshco',
+      'farm boy','t&t','produce','supermarket']
+  },
+  {
+    name: 'Restaurants', icon: '🍽️', color: '#FF6B6B',
+    keywords: ['mcdonald','starbucks','uber eats','doordash','grubhub','chipotle',
+      'restaurant','cafe','coffee','pizza','sushi','chick-fil','taco bell',
+      'subway','wendy','burger king','domino','panera','shake shack','tim horton',
+      'harvey','a&w','panda express','dining','takeout','dine in','diner','bistro','grill']
+  },
+  {
+    name: 'Subscriptions', icon: '📱', color: '#A29BFE',
+    keywords: ['netflix','spotify','hulu','disney','apple tv','youtube premium',
+      'amazon prime','prime video','annual fee','membership','adobe','microsoft 365',
+      'icloud','google one','dropbox','crunchyroll','paramount+','apple one','duolingo']
+  },
+  {
+    name: 'Personal Care', icon: '🧴', color: '#FD79A8',
+    keywords: ['shampoo','conditioner','serum','moisturizer','lotion','skincare',
+      'cerave','the ordinary','neutrogena','head & shoulders','dove','pantene',
+      'shoppers drug','rexall','body wash','deodorant','toothpaste','hygiene',
+      'manicure','pedicure','haircut','salon','barbershop']
+  },
+  {
+    name: 'Wearables & Fashion', icon: '👔', color: '#FDCB6E',
+    keywords: ['zara','h&m','nike','adidas','uniqlo','gap','forever 21','aritzia',
+      'lululemon','aldo','sephora','ulta','perfume','cologne','shoes','clothes',
+      'jacket','dress','shirt','pants','accessories','watch','jewellery','sunglasses',
+      'nordstrom','winners','marshalls','tj maxx','old navy','urban outfitters']
+  },
+  {
+    name: 'Home & Living', icon: '🏠', color: '#74B9FF',
+    keywords: ['ikea','wayfair','home depot','canadian tire','bed bath','lamp',
+      'furniture','decor','steel','organizer','storage','cushion','curtain',
+      'kitchenware','appliance','toolbox','hardware','lightbulb','candle','plant pot']
+  }
+];
+
+async function seedCategoryUpdates() {
+  // Rename Shopping → Wearables & Fashion (preserves April data under the new name)
+  await db.execute({
+    sql: `UPDATE categories SET name=?,icon=?,color=?,keywords=? WHERE name=?`,
+    args: [
+      'Wearables & Fashion', '👔', '#FDCB6E',
+      JSON.stringify(['zara','h&m','nike','adidas','uniqlo','gap','forever 21','aritzia',
+        'lululemon','aldo','sephora','ulta','perfume','cologne','shoes','clothes',
+        'jacket','dress','accessories','watch','jewellery','nordstrom','winners','marshalls','old navy']),
+      'Shopping'
+    ]
+  });
+  // Insert new categories (skips if name already exists)
+  for (const c of NEW_CATEGORIES) {
+    await db.execute({
+      sql: 'INSERT OR IGNORE INTO categories (name,icon,color,keywords) VALUES (?,?,?,?)',
+      args: [c.name, c.icon, c.color, JSON.stringify(c.keywords)]
+    });
+  }
+}
+
 // ── Migrations ────────────────────────────────────────────────────────────────
 async function migrateSchema() {
   const migrations = [
@@ -142,6 +206,7 @@ async function migrateSchema() {
 await initSchema();
 await migrateSchema();
 await seedCategories();
+await seedCategoryUpdates();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 export function makeHash(date, description, amount) {
@@ -481,6 +546,63 @@ export async function getRecurring() {
     args: []
   });
   return rowsToPlain(r.rows);
+}
+
+// ── Annual Report ─────────────────────────────────────────────────────────────
+export async function getAnnual(year) {
+  const y = String(year || new Date().getFullYear());
+
+  const [totalsRes, byCatRes, monthlyRes] = await Promise.all([
+    db.execute({
+      sql: `SELECT
+              COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0) AS total_spent,
+              COALESCE(SUM(CASE WHEN amount > 0 THEN amount        ELSE 0 END), 0) AS total_income,
+              COUNT(DISTINCT strftime('%Y-%m', date)) AS months_active,
+              COUNT(*) AS transaction_count
+            FROM transactions WHERE strftime('%Y', date) = ?`,
+      args: [y]
+    }),
+    db.execute({
+      sql: `SELECT c.id, c.name, c.icon, c.color,
+                   ROUND(SUM(ABS(t.amount)), 2) AS amount, COUNT(*) AS count
+            FROM transactions t JOIN categories c ON t.category_id = c.id
+            WHERE strftime('%Y', t.date) = ? AND t.amount < 0
+            GROUP BY c.id ORDER BY amount DESC`,
+      args: [y]
+    }),
+    db.execute({
+      sql: `SELECT strftime('%Y-%m', date) AS month,
+                   ROUND(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 2) AS spent,
+                   ROUND(SUM(CASE WHEN amount > 0 THEN amount        ELSE 0 END), 2) AS income
+            FROM transactions WHERE strftime('%Y', date) = ?
+            GROUP BY month ORDER BY month`,
+      args: [y]
+    })
+  ]);
+
+  const totals = rowToPlain(totalsRes.rows[0]);
+  const totalSpent = Number(totals.total_spent) || 0;
+  const byCategory = rowsToPlain(byCatRes.rows).map(c => ({
+    ...c,
+    amount: Number(c.amount),
+    count: Number(c.count),
+    percentage: totalSpent > 0 ? Math.round((Number(c.amount) / totalSpent) * 100) : 0
+  }));
+
+  return {
+    year: y,
+    total_spent: totalSpent,
+    total_income: Number(totals.total_income) || 0,
+    net: (Number(totals.total_income) || 0) - totalSpent,
+    months_active: Number(totals.months_active) || 0,
+    transaction_count: Number(totals.transaction_count) || 0,
+    by_category: byCategory,
+    monthly_trend: rowsToPlain(monthlyRes.rows).map(r => ({
+      month: r.month,
+      spent: Number(r.spent),
+      income: Number(r.income)
+    }))
+  };
 }
 
 // ── Export / Reset ────────────────────────────────────────────────────────────
